@@ -1,49 +1,119 @@
 <template>
-  <q-page class="row items-center justify-evenly">
-    <example-component
-      title="Example component"
-      active
-      :todos="todos"
-      :meta="meta"
-    ></example-component>
+  <q-page padding class="row items-center">
+    <template v-if="todos.length === 0">
+      <div class="col column q-px-md">
+        <div class="q-mb-lg">
+          <div class="text-h2 text-primary">Hey</div>
+          <div class="text-h2">you are</div>
+          <div class="text-h2">free today</div>
+        </div>
+        <p class="text-caption text-grey q-mb-xl">Time to get active</p>
+        <q-btn
+          outline
+          rounded
+          color="primary"
+          size="lg"
+          label="Add a new task"
+          @click="openDialog"
+        />
+      </div>
+    </template>
+    <template v-else>
+      <div class="col column q-px-md">
+        <div class="q-mb-lg">
+          <div class="text-h1 text-primary">{{ todos.length }}</div>
+          <div class="text-h2">tasks</div>
+          <div class="text-h2">for today</div>
+        </div>
+        <p class="text-caption text-grey q-mb-xl">
+          {{ doneTodos.length }} tasks done
+        </p>
+        <q-btn
+          outline
+          rounded
+          color="primary"
+          size="lg"
+          label="Add a new task"
+          @click="openDialog"
+        />
+        <q-scroll-area class="q-mt-xl" style="height: 150px; width: auto">
+          <template v-for="todo in todos" v-bind:key="todo.id">
+            <poc-todo-item
+              :todo="todo"
+              @click="handleClicked"
+              @delete="handleDeleted"
+            ></poc-todo-item>
+          </template>
+        </q-scroll-area>
+      </div>
+    </template>
   </q-page>
 </template>
 
-<script lang="ts">
-import { Todo, Meta } from 'components/models';
-import ExampleComponent from 'components/CompositionComponent.vue';
-import { defineComponent, ref } from 'vue';
+<script lang="ts" setup>
+import { TodoEvent, TodoItem } from 'src/types'
+import { computed, ref } from 'vue'
 
-export default defineComponent({
-  name: 'PageIndex',
-  components: { ExampleComponent },
-  setup() {
-    const todos = ref<Todo[]>([
-      {
-        id: 1,
-        content: 'ct1',
-      },
-      {
-        id: 2,
-        content: 'ct2',
-      },
-      {
-        id: 3,
-        content: 'ct3',
-      },
-      {
-        id: 4,
-        content: 'ct4',
-      },
-      {
-        id: 5,
-        content: 'ct5',
-      },
-    ]);
-    const meta = ref<Meta>({
-      totalCount: 1200,
-    });
-    return { todos, meta };
-  },
-});
+import PocTodoItem from 'src/components/PocTodoItem.vue'
+import { useQuasar } from 'quasar'
+
+const todos = ref<TodoItem[]>([
+  { id: 0, label: 'My first todo', state: 'pending' },
+])
+const doneTodos = computed(() => todos.value.filter((t) => t.state === 'done'))
+
+const $q = useQuasar()
+
+const handleClicked = ({ id, state }: TodoEvent) => {
+  const todo = todos.value.find((t) => t.id === id)
+  if (todo) {
+    todo.state = state
+  }
+}
+
+const handleDeleted = ({ id }: TodoEvent) => {
+  const todo = todos.value.find((t) => t.id === id)
+  if (!todo) return
+  if (todo.state === 'canceled') {
+    // NOTE: delete the todo
+    todos.value = todos.value.filter((t) => t.id !== id)
+  } else {
+    todo.state = 'canceled'
+  }
+}
+
+const openDialog = () => {
+  $q.dialog({
+    title: 'Add a task',
+    message: 'What do you want to be done today?',
+    prompt: {
+      model: '',
+      type: 'text', // optional
+    },
+    cancel: true,
+    persistent: true,
+  })
+    .onOk((label: string) => {
+      const newTodo: TodoItem = {
+        id: Math.floor(Math.random() * 100),
+        label,
+        state: 'pending',
+      }
+      todos.value = [...todos.value, newTodo]
+    })
+    .onCancel(() => {
+      // console.log('>>>> Cancel')
+    })
+    .onDismiss(() => {
+      // console.log('I am triggered on both OK and Cancel')
+    })
+}
 </script>
+
+<style lang="sass" scope>
+.text-caption
+  font-size: 1.5rem
+  font-weight: 400
+  line-height: 1.25rem
+  letter-spacing: 0.03333em
+</style>
