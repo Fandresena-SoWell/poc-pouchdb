@@ -51,34 +51,40 @@
 </template>
 
 <script lang="ts" setup>
-import { TodoEvent, TodoItem } from 'src/types'
-import { computed, ref } from 'vue'
-
+import PouchDB from 'pouchdb'
+import { computed, onMounted } from 'vue'
 import PocTodoItem from 'src/components/PocTodoItem.vue'
 import { useQuasar } from 'quasar'
+import { TodoRepositorySingletonFactory } from 'src/models/repositories/TodoRepository'
+import { TodoItem } from 'src/models/entities'
+import { ITodo } from 'src/models/interfaces'
 
-const todos = ref<TodoItem[]>([
-  { id: 0, label: 'My first todo', state: 'pending' },
-])
+const todoRepository = TodoRepositorySingletonFactory.Instance()
+
+const todos = computed({
+  get: () =>
+    todoRepository.documents
+      .value as unknown as PouchDB.Core.Document<TodoItem>[],
+  set: () => {
+    // NOTE: readonly
+  },
+})
+
 const doneTodos = computed(() => todos.value.filter((t) => t.state === 'done'))
 
 const $q = useQuasar()
 
-const handleClicked = ({ id, state }: TodoEvent) => {
-  const todo = todos.value.find((t) => t.id === id)
-  if (todo) {
-    todo.state = state
-  }
+const handleClicked = async ({ _id, state }: ITodo) => {
+  await todoRepository.update(_id, { state })
 }
 
-const handleDeleted = ({ id }: TodoEvent) => {
-  const todo = todos.value.find((t) => t.id === id)
+const handleDeleted = async ({ _id }: ITodo) => {
+  const todo = await todoRepository.findOne(_id)
   if (!todo) return
   if (todo.state === 'canceled') {
-    // NOTE: delete the todo
-    todos.value = todos.value.filter((t) => t.id !== id)
+    await todoRepository.delete(_id)
   } else {
-    todo.state = 'canceled'
+    await todoRepository.update(_id, { state: 'canceled' })
   }
 }
 
@@ -94,12 +100,8 @@ const openDialog = () => {
     persistent: true,
   })
     .onOk((label: string) => {
-      const newTodo: TodoItem = {
-        id: Math.floor(Math.random() * 100),
-        label,
-        state: 'pending',
-      }
-      todos.value = [...todos.value, newTodo]
+      const newTodo = new TodoItem(label)
+      void todoRepository.create(newTodo)
     })
     .onCancel(() => {
       // console.log('>>>> Cancel')
@@ -108,6 +110,10 @@ const openDialog = () => {
       // console.log('I am triggered on both OK and Cancel')
     })
 }
+
+onMounted(async () => {
+  await todoRepository.find({})
+})
 </script>
 
 <style lang="sass" scope>

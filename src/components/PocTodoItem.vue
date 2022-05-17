@@ -21,7 +21,7 @@
           icon="delete"
           flat
           round
-          @click="$emit('delete', { id: todo.id, state: 'canceled' })"
+          @click="$emit('delete', { _id: todo._id, state: 'canceled' })"
         ></q-btn>
       </q-item-section>
     </q-item>
@@ -35,11 +35,12 @@ export default {
 </script>
 
 <script lang="ts" setup>
-import { TodoItem } from 'src/types'
+import { TodoItem } from 'src/models/entities'
+import PouchDB from 'pouchdb'
 import { computed, PropType, defineEmits, defineProps } from 'vue'
 const props = defineProps({
   todo: {
-    type: Object as PropType<TodoItem>,
+    type: Object as PropType<PouchDB.Core.Document<TodoItem>>,
     required: true,
   },
 })
@@ -49,7 +50,7 @@ const emit = defineEmits(['click', 'delete'])
 const checked = computed({
   get: () => props.todo.state,
   set: (value) => {
-    emit('click', { id: props.todo.id, state: value })
+    emit('click', { _id: props.todo._id, state: value })
   },
 })
 </script>
